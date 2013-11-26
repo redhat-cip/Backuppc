@@ -149,6 +149,7 @@ There are \$hostCntGood hosts that have been backed up, for a total of:
 </p>
 <table class="sortable" id="host_summary_backups" border cellpadding="3" cellspacing="1">
 <tr class="tableheader"><td> Host </td>
+    <td align="center"> Socle </td>
     <td align="center"> User </td>
     <td align="center"> #Full </td>
     <td align="center"> Full Age (days) </td>
@@ -160,6 +161,8 @@ There are \$hostCntGood hosts that have been backed up, for a total of:
     <td align="center"> State </td>
     <td align="center"> #Xfer errs </td>
     <td align="center"> Last attempt </td></tr>
+    <td align="center"> DoBackup </td>
+    <td align="center"> Downtime </td></tr>
 \$strGood
 </table>
 <br><br>
@@ -169,6 +172,7 @@ There are \$hostCntNone hosts with no backups.
 <p>
 <table class="sortable" id="host_summary_nobackups" border cellpadding="3" cellspacing="1">
 <tr class="tableheader"><td> Host </td>
+    <td align="center"> Socle </td>
     <td align="center"> User </td>
     <td align="center"> #Full </td>
     <td align="center"> Full Age (days) </td>
@@ -180,8 +184,23 @@ There are \$hostCntNone hosts with no backups.
     <td align="center"> State </td>
     <td align="center"> #Xfer errs </td>
     <td align="center"> Last attempt </td></tr>
+    <td align="center"> DoBackup </td>
+    <td align="center"> Downtime </td></tr>
 \$strNone
 </table>
+
+<input type=\"hidden\" id=\"action\" name=\"action\" value=\"launchback\">
+<input type=\"submit\" name=\"Increment\" onClick=\"return confirm('Launch increments ?')\" value=\"Start Increment\">
+<input type=\"submit\" name=\"Full\" onClick=\"return confirm('launch fulls ?')\" value=\"Start Full\">
+<input type=\"submit\" id=\"Downtime\" name=\"Downtime\" onClick=\"downtimeConf()\" value=\"downtime\">
+</form>
+
+<script type="text/javascript">
+function downtimeConf(){
+    document.getElementById('action').value = 'downtime'
+    return confirm('Voulez downtime ?')
+}
+</script>
 EOF
 
 $Lang{BackupPC_Archive} = <<EOF;
@@ -656,6 +675,15 @@ $Lang{Host__host_Backup_Summary2} = <<EOF;
 <input type="button" value="\$Lang->{Start_Full_Backup}"
  onClick="document.StartStopForm.action.value='Start_Full_Backup';
           document.StartStopForm.submit();">
+
+<form method="post" action="/BackupPC_Admin" name="LaunchBackForm">
+<input type=\"hidden\" id=\"action\" name=\"action\" value=\"launchback\">
+<input type=\"hidden\" id=\"ForceBack\" name=\"ForceBack\" value=\"yes\">
+<input type=\"hidden\" name=\"doBack_\$host\" value=\"\$host\">                                                                                                                                                  
+<input type=\"submit\" name=\"Increment" onClick="return confirm('Voulez lancer les increments ?')" value=\"Force Start Increment\">
+<input type=\"submit\" name=\"Full" onClick="return confirm('Voulez lancer les fulls ?')" value=\"Force Start Full\">
+</form>
+
 <input type="button" value="\$Lang->{Stop_Dequeue_Backup}"
  onClick="document.StartStopForm.action.value='Stop_Dequeue_Backup';
           document.StartStopForm.submit();">

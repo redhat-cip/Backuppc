@@ -461,6 +461,14 @@ sub HostInfoRead
                 return \%hosts;
             } else {
                 @{$hosts{lc($fld[0])}}{@hdr} = @fld;
+
+                #patch F.L
+                my $bconf = BackupPC::Lib->new;
+                $bconf->ConfigRead(lc($fld[0]));
+                my %confHost = $bconf->Conf();
+                my $poolHost = $confHost{CheckForQueuePool}{lc($fld[0])};
+                $hosts{lc($fld[0])}{'poolNumber'} = $poolHost;
+                ###   
             }
         } else {
             @hdr = @fld;
@@ -492,6 +500,20 @@ sub HostInfoWrite
         my $rest = "\t$hosts->{$host}{dhcp}"
                  . "\t$hosts->{$host}{user}"
                  . "\t$hosts->{$host}{moreUsers}";
+
+    #patch F.L
+    my $bconf = BackupPC::Lib->new;
+ 
+    my $newConfPool;
+    #recup des anciennes confs
+    $newConfPool = $bconf->ConfigDataRead($hosts->{$host}{host});
+    #ajout du num de pool
+    $newConfPool->{CheckForQueuePool}{$hosts->{$host}{host}} = $hosts->{$host}{poolNumber};
+ 
+    #écriture des confs de l'host
+    $bconf->ConfigDataWrite($hosts->{$host}{host}, $newConfPool);
+    ###
+
         $name =~ s/ /\\ /g;
         $rest =~ s/ //g;
         $hostText->{$host} = $name . $rest;

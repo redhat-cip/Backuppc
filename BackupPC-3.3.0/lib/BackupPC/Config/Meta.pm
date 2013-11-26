@@ -508,6 +508,7 @@ use vars qw(%ConfigMeta);
 		    dhcp       => { type => "boolean"            },
 		    user       => { type => "string", size => 20 },
 		    moreUsers  => { type => "string", size => 30 },
+            poolNumber  => { type => "integer", size => 5 },
 		},
 	    },
     },

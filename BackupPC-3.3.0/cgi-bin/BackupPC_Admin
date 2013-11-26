@@ -82,6 +82,10 @@ my %ActionDispatch = (
     "adminOpts"                  => "AdminOptions",
     "editConfig"                 => "EditConfig",
     "rss"                        => "RSS",
+    "launchback"      =>  "LaunchMassBack",
+    "actionsummary"  =>  "ActionSummary",
+    "actionstop"    =>  "ActionStop",
+    "downtime"    =>  "Downtime",
 );
 
 #

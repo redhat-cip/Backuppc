@@ -146,9 +146,11 @@ Il y a \$hostCntGood hôtes ayant été sauvegardés, pour un total de :
 <li> \$incrTot sauvegardes incrémentielles de tailles cumulées de \${incrSizeTot} Go
      (précédant la mise en commun et la compression).
 </ul>
+<form method="post" action="/BackupPC_Admin" name="LaunchBackForm">
 </p>
 <table class="sortable" id="host_summary_backups" border cellpadding="3" cellspacing="1">
 <tr class="tableheader"><td> Hôte </td>
+    <td align="center"> Socle </td>
     <td align="center"> Utilisateur </td>
     <td align="center"> Nb complètes </td>
     <td align="center"> Complètes Âge (jours) </td>
@@ -159,7 +161,9 @@ Il y a \$hostCntGood hôtes ayant été sauvegardés, pour un total de :
     <td align="center"> Dernière sauvegarde (jours) </td>
     <td align="center"> État actuel </td>
     <td align="center"> Nb erreurs transfert </td>
-    <td align="center"> Dernière tentative </td></tr>
+    <td align="center"> Dernière tentative </td>
+    <td align="center"> DoBackup </td>
+    <td align="center"> Downtime </td></tr>
 \$strGood
 </table>
 <br><br>
@@ -169,6 +173,7 @@ Il y a \$hostCntNone hôtes sans sauvegardes.
 <p>
 <table class="sortable" id="host_summary_nobackups" border cellpadding="3" cellspacing="1">
 <tr class="tableheader"><td> Hôte </td>
+    <td align="center"> Socle </td>
     <td align="center"> Utilisateur </td>
     <td align="center"> Nb complètes </td>
     <td align="center"> Complètes Âge (jours) </td>
@@ -179,9 +184,26 @@ Il y a \$hostCntNone hôtes sans sauvegardes.
     <td align="center"> Dernière sauvegarde (jours) </td>
     <td align="center"> État actuel </td>
     <td align="center"> Nb erreurs transfert </td>
-    <td align="center"> Dernière tentative </td></tr>
+    <td align="center"> Dernière tentative </td>
+    <td align="center"> DoBackup </td>
+    <td align="center"> Downtime </td></tr>
 \$strNone
 </table>
+
+<br />
+ 
+<input type=\"hidden\" id=\"action\" name=\"action\" value=\"launchback\">
+<input type=\"submit\" name=\"Increment\" onClick=\"return confirm('Voulez lancer les increments ?')\" value=\"Start Increment\">
+<input type=\"submit\" name=\"Full\" onClick=\"return confirm('Voulez lancer les fulls ?')\" value=\"Start Full\">
+<input type=\"submit\" id=\"Downtime\" name=\"Downtime\" onClick=\"downtimeConf()\" value=\"downtime\">
+</form>
+
+<script type="text/javascript">
+function downtimeConf(){
+    document.getElementById('action').value = 'downtime'
+    return confirm('Voulez downtime ?')
+}
+</script>
 EOF
 
 $Lang{BackupPC_Archive}=<<EOF;
@@ -654,9 +676,18 @@ $Lang{Host__host_Backup_Summary2} = <<EOF;
 <input type="button" value="\$Lang->{Start_Full_Backup}"
  onClick="document.StartStopForm.action.value='Start_Full_Backup';
           document.StartStopForm.submit();">
+
 <input type="button" value="\$Lang->{Stop_Dequeue_Backup}"
  onClick="document.StartStopForm.action.value='Stop_Dequeue_Backup';
           document.StartStopForm.submit();">
+</form>
+
+<form method="post" action="/BackupPC_Admin" name="LaunchBackForm">
+<input type=\"hidden\" id=\"action\" name=\"action\" value=\"launchback\">
+<input type=\"hidden\" id=\"ForceBack\" name=\"ForceBack\" value=\"yes\">
+<input type=\"hidden\" name=\"doBack_\$host\" value=\"\$host\">
+<input type=\"submit\" name=\"Increment" onClick="return confirm('Voulez lancer les increments ?')" value=\"Force Start Increment\">
+<input type=\"submit\" name=\"Full" onClick="return confirm('Voulez lancer les fulls ?')" value=\"Force Start Full\">
 </form>
 </p>
 \${h2("Résumé de la sauvegarde")}
@@ -1426,6 +1457,7 @@ sur le bouton Sauvegarder. Aucune des sauvegardes des machines ne sera
 détruite, donc si vous effacez une machine par erreur, créez-la à nouveau. Pour
 détruire les sauvegardes d'une machine, vous devez effacer les fichiers 
 manuellement dans \$topDir/pc/HOST
+<br>/!&#92; Le paramètre poolNumber sur-définie la configuration globale. Il sera donc sauvegardé dans le fichier de configuration spécifique de l'hôte
 EOF
 
 $Lang{CfgEdit_Header_Main} = <<EOF;

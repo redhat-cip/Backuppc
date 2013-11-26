@@ -138,6 +138,7 @@ sub action
 
         $str = <<EOF;
 <tr$reasonHilite><td class="border">${HostLink($host)}</td>
+    <td class="border">$Conf{ClientNameAlias}</td>
     <td align="center" class="border"> ${UserLink(defined($Hosts->{$host})
 				    ? $Hosts->{$host}{user} : "")} </td>
     <td align="center" class="border">$fullCnt</td>
@@ -149,7 +150,9 @@ sub action
     <td align="center" class="border">$lastAge</td> 
     <td align="center" class="border">$Lang->{$tempState}</td>
     <td align="center" class="border">$lastXferErrors</td> 
-    <td class="border">$Lang->{$tempReason}$shortErr</td></tr>
+    <td class="border">$Lang->{$tempReason}$shortErr</td>
+    <td align="center" class="border"><input type="checkbox" name="doBack_$host" value="$host"></td>
+    <td align="center" class="border"><input type="checkbox" name="downtime_$host" value="$host"></td></tr>
 EOF
         if ( @Backups == 0 ) {
             $hostCntNone++;

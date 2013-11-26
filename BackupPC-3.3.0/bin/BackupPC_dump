@@ -610,12 +610,17 @@ $ShareNames = BackupPC::Xfer::getShareNames(\%Conf);
 #
 # Run an optional pre-dump command
 #
+
+#F.L
+AddJobMysql($client);
 UserCommandRun("DumpPreUserCmd");
 if ( $? && $Conf{UserCmdCheckStatus} ) {
     print(LOG $bpc->timeStamp,
             "DumpPreUserCmd returned error status $?... exiting\n");
     $XferLOG->write(\"DumpPreUserCmd returned error status $?... exiting\n");
     $stat{hostError} = "DumpPreUserCmd returned error status $?";
+    #F.L Delete shared job
+    DelJobMysql($client);
     BackupFailCleanup();
 }
 $NeedPostCmd = 1;
@@ -997,6 +1002,8 @@ if ( !$stat{xferOK} ) {
     #
     # Close the log file and call BackupFailCleanup, which exits.
     #
+    #F.L Delete shared job 
+    DelJobMysql($client);
     BackupFailCleanup();
 }
 
@@ -1014,10 +1021,75 @@ print(LOG $bpc->timeStamp,
         . " $stat{byteCnt} bytes,"
         . " $stat{xferErrCnt} xferErrs ($stat{xferBadFileCnt} bad files,"
         . " $stat{xferBadShareCnt} bad shares, $otherCount other)\n");
-
+#F.L Delete shared job                                                                                
+DelJobMysql($client);
 BackupExpire($client);
 
 print("$type backup complete\n");
+
+#########################################
+# DelJobMysql Delete shared job in mysql
+#########################################
+ 
+sub DelJobMysql{
+    #Del job in mysql
+    my $currenthost = shift;
+ 
+    return 0 if($Conf{SharedJobQueue} ne 'on');
+ 
+    #my $bconf = BackupPC::Lib->new;
+    #$bconf->ConfigRead($currenthost);
+    #my %confHost = $bconf->Conf();
+    #my $ClientNameAlias = $confHost{ClientNameAlias};
+    my $backupHost = $Conf{ServerHost};
+ 
+ 
+    #Del job in database    
+    use DBI;
+    my $dsn = "DBI:mysql:database=$Conf{SharedJobMysqlDatabase};host=$Conf{SharedJobMysqlHost};port=$Conf{SharedJobMysqlPort}";
+    my $connect = DBI->connect($dsn, $Conf{SharedJobMysqlLogin}, $Conf{SharedJobMysqlPass}) or die "Echec connexion";
+    my $requete = "DELETE FROM jobs WHERE server='$backupHost' and backupname='$currenthost';";
+    my $res = $connect->prepare($requete);
+    $res->execute();
+    $res -> finish;
+    $connect -> disconnect;
+ 
+    open(FILE,">>/tmp/updateJobsMysql");
+        print FILE "---Del  $backupHost $currenthost\n";
+    close(FILE);
+ 
+}
+ 
+sub AddJobMysql{
+    #Add job in mysql
+    my $currenthost = shift;
+ 
+    return 0 if($Conf{SharedJobQueue} ne 'on');
+ 
+    #my $bconf = BackupPC::Lib->new;
+    #$bconf->ConfigRead($currenthost);
+    #my %confHost = $bconf->Conf();
+    #my $ClientNameAlias = $confHost{ClientNameAlias};
+    my $ClientNameAlias = $host;
+    my $backupHost = $Conf{ServerHost};
+ 
+    my $currHours = localtime(time);
+ 
+    #Add job in database
+    use DBI;
+    my $dsn = "DBI:mysql:database=$Conf{SharedJobMysqlDatabase};host=$Conf{SharedJobMysqlHost};port=$Conf{SharedJobMysqlPort}";
+    my $connect = DBI->connect($dsn, $Conf{SharedJobMysqlLogin}, $Conf{SharedJobMysqlPass}) or die "Echec connexion";
+    my $requete = "INSERT INTO jobs (id, server, clientnamealias, backupname, datestart) values ('', '$backupHost', '$ClientNameAlias', '$currenthost', '$currHours' )";
+    my $res = $connect->prepare($requete);
+    $res->execute();
+    $res -> finish;
+    $connect -> disconnect;
+ 
+    open(FILE,">>/tmp/updateJobsMysql");
+        print FILE "---Add  $backupHost $ClientNameAlias $currenthost $currHours\n";
+    close(FILE);
+ 
+}
 
 ###########################################################################
 # Subroutines

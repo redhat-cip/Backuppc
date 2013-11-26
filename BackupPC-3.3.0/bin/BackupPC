@@ -563,6 +563,193 @@ sub Main_TryToRun_CmdQueue
 }
 
 ############################################################################
+# checkJobMysql()
+#
+# Check in mysql if jobs for clientnamealias is running
+#
+# $Conf{SharedJobMysqlDatabase} : database name
+# $Conf{SharedJobMysqlHost} : database host
+# $Conf{SharedJobMysqlPort} : database port
+# $Conf{SharedJobMysqlLogin} : database user
+# $Conf{SharedJobMysqlPass} : database pass
+############################################################################
+
+sub checkJobMysql{
+ 
+    my $hostTmp = shift;
+ 
+    #Check job in database
+    use DBI;
+    my $dsn = "DBI:mysql:database=$Conf{SharedJobMysqlDatabase};host=$Conf{SharedJobMysqlHost};port=$Conf{SharedJobMysqlPort}";
+    my $connect = DBI->connect($dsn, $Conf{SharedJobMysqlLogin}, $Conf{SharedJobMysqlPass}) or die "Echec connexion";
+    my $requete = "SELECT id FROM jobs WHERE clientnamealias='$hostTmp'";
+    my $res = $connect->prepare($requete);
+    $res->execute();
+    my $found = $res->fetch();
+    $res -> finish;
+    $connect -> disconnect;
+ 
+    return 1 if $found;
+    return 0;
+ 
+}
+
+############################################################################
+# checkForQueue()
+#
+# Allow you to add more conditions in scheduling queue.
+# Return 0 if backup is allowed or 1 if if it have to wait
+#
+# $Conf{CheckForQueue} : activer les checks perso (on / off)
+# $Conf{CheckForQueueType} : choix du type de checks (Alias / Pool)
+# $Conf{CheckForQueuePool} : configuration des pools (<host> => <numPool>)
+############################################################################
+
+sub checkForQueue{
+ 
+    my $hostTmp = shift;
+    my $TmpJobs = shift;
+    my $currentHost = $hostTmp;
+ 
+    my $bconf = BackupPC::Lib->new;
+    $bconf->ConfigRead($hostTmp);
+    my %confHost = $bconf->Conf();
+ 
+    #retourne 0 si CheckAlias est désactivé dans le fichier conf.pl ou <host>.pl ($Conf{CheckForQueue} = 'on';)
+    #
+    return 0 if $confHost{CheckForQueue} ne 'on' && $confHost{ForceBlackoutPeriods} ne 'on';
+ 
+    #Regarde le type de check à utiliser
+    my $CheckForQueueType = defined($confHost{CheckForQueueType}) ? $confHost{CheckForQueueType} : 'Alias';
+ 
+    if($CheckForQueueType eq 'Alias'){
+ 
+        ##ClientNameAlias
+        $hostTmp = $confHost{ClientNameAlias};
+        if($hostTmp ne ''){
+            foreach ( keys %{$TmpJobs} ){
+ 
+                if($_ !~ /^ trashClean $/){
+                    #regarde dans la conf le ClientNameAlias
+                    $bconf->ConfigRead($_);
+                    %confHost = $bconf->Conf();
+                    my $hostJob = $confHost{ClientNameAlias};
+ 
+                    next if($hostJob eq '');
+ 
+                    if($hostTmp eq $hostJob){
+                        return 1;
+                    }
+                }
+            }
+        }
+
+        #Check shared jobs
+        if($Conf{SharedJobQueue} eq 'on'){
+            return 1 if checkJobMysql($hostTmp) == 1;
+        }
+ 
+    }elsif($CheckForQueueType eq 'Pool'){
+        ##Pool
+        my $poolHost = $confHost{CheckForQueuePool}{$hostTmp};
+        return 0 if $poolHost eq '';
+ 
+        foreach ( keys %{$TmpJobs} ){
+            if($_ !~ /^ trashClean $/){
+                #occupé si le numero de pool est deja present dans les jobs
+                return 1 if $confHost{CheckForQueuePool}{$_} == $poolHost;
+            }
+        }
+    }
+
+
+## Ignorer la BlackoutPeriods via ForceFull ##
+    #Regarde la liste des prochaines backup à forcer
+    my $FileForce = '/etc/backuppc/ForceBackup.pl';
+ 
+    #on lis le fichier qui contient les noms des hosts backups à forcer
+    my %ForceListe;
+    open(FILEFORCE, "$FileForce");
+        my @ForceListeRead = <FILEFORCE>;
+    close(FILEFORCE);
+    my $ForceListeRead=join " ", @ForceListeRead;
+    #attribut les valeurs à la variable de hash
+ 
+    if ($ForceListeRead =~ /^([^;]*;)$/) {
+        eval($1);
+    }
+ 
+    #Si l'host et contenu dans la liste on lance le backup et supprime de la liste
+    if(defined($ForceListe{$currentHost})){
+        delete $ForceListe{$currentHost};
+ 
+        #met en forme la syntaxe pour exporter dans le fichier
+        my($ForceListeWrite) = Data::Dumper->new(
+                         [  \%ForceListe],
+                         [qw(*ForceListe)]);
+        $ForceListeWrite->Indent(1);                                                                                                                                                                                
+ 
+        #ecrit le fichier
+        open (FILEFORCE, ">$FileForce");
+            print(FILEFORCE $ForceListeWrite->Dump);
+        close(FILEFORCE);
+ 
+        return 0;
+    }
+
+## forceBlackoutPeriods ##
+    ##regarde la BlackoutPeriods et laisse en file si time est compris entre
+ 
+ 
+    #recharge la config pour regarder BlackoutPeriods 
+    $bconf->ConfigRead($currentHost);
+    %confHost = $bconf->Conf();
+    #regarde si la config ForceBlackoutPeriods = on (on = forcer BlackoutPeriods; off = fonctionnement normal)
+    if($confHost{ForceBlackoutPeriods} eq 'on'){
+ 
+            #BlackoutPeriods
+            my($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+            my($currHours) = $hour + $min / 60 + $sec / 3600;
+            my $blackout;
+ 
+            foreach my $p ( @{$confHost{BlackoutPeriods}} ) {
+                #
+                # Allow blackout to span midnight (specified by hourBegin
+                # being greater than hourEnd)
+                #
+                next if ( ref($p->{weekDays}) ne "ARRAY"
+                            || !defined($p->{hourBegin})
+                            || !defined($p->{hourEnd})
+                        );
+                my $matchWday = $wday;
+                if ( $p->{hourBegin} > $p->{hourEnd} ) {
+                    $blackout = $p->{hourBegin} <= $currHours
+                                  || $currHours <= $p->{hourEnd};
+                    if ( $currHours <= $p->{hourEnd} ) {
+                        #
+                        # This is after midnight, so decrement the weekday for the
+                        # weekday check (eg: Monday 11pm-1am means Monday 2300 to
+                        # Tuesday 0100, not Monday 2300-2400 plus Monday 0000-0100).
+                        #
+                        $matchWday--;
+                        $matchWday += 7 if ( $matchWday < 0 );
+                    }
+                } else {
+                    $blackout = $p->{hourBegin} <= $currHours
+                                  && $currHours <= $p->{hourEnd};
+                }
+ 
+                if ( $blackout && grep($_ == $matchWday, @{$p->{weekDays}}) ) {
+                    #skip
+                    return 1;
+                }
+            }
+    }
+
+    return 0;
+}
+
+############################################################################
 # Main_TryToRun_Bg_or_User_Queue()
 #
 # Decide if we can run any new backup requests from @BgQueue
@@ -651,7 +838,9 @@ sub Main_TryToRun_Bg_or_User_Queue
         if ( $nJobs < $Conf{MaxBackups} + $Conf{MaxUserBackups}
                         && @UserQueue > 0 ) {
             $req = pop(@UserQueue);
-            if ( defined($Jobs{$req->{host}}) ) {
+            #patch F.L
+            #if ( defined($Jobs{$req->{host}}) ) {
+            if ( defined($Jobs{$req->{host}}) || ( (checkForQueue($req->{host},\%Jobs) == 1)) && !defined($req->{restore})) {
                 push(@deferUserQueue, $req);
                 next;
             }
@@ -661,7 +850,9 @@ sub Main_TryToRun_Bg_or_User_Queue
                                 <= $Conf{MaxBackups} + $Conf{MaxPendingCmds}
                         && @BgQueue > 0 ) {
             $req = pop(@BgQueue);
-            if ( defined($Jobs{$req->{host}}) ) {
+            #patch F.L
+            #if ( defined($Jobs{$req->{host}}) ) {
+            if ( defined($Jobs{$req->{host}}) || ( (checkForQueue($req->{host},\%Jobs) == 1)) && !defined($req->{restore})  ) {
                 #
                 # Job is currently running for this host; save it for later
                 #
@@ -1198,6 +1389,15 @@ sub Main_Check_Job_Messages
 				     $Info{"${p}FileRepMax"},
 				     $Info{"${p}FileLinkMax"}, $Info{"${p}DirCnt"});
 			}
+if (-x "/usr/bin/rrdtool") {
+                            my $date = time() + (24*3600);
+                            if (! -f "$LogDir/pool.rrd") {
+                                    system("/usr/bin/rrdtool create $LogDir/pool.rrd --step 86400 DS:ckb:GAUGE:172800:0:U RRA:AVERAGE:0.5:1:1400");
+                            }    
+                            system("/usr/bin/rrdtool update $LogDir/pool.rrd --template ckb $date:".($Info{"cpoolKb"}+$Info{"poolKb"}));
+                            #print(LOG $bpc->timeStamp, "RRD data\n");
+                            #print(LOG $bpc->timeStamp, "RRD data: ".($Info{"cpoolKb"}+$Info{"poolKb"})."\n");
+                        }
                     }
                 } else {
                     $CmdJob = "";

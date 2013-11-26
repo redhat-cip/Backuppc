@@ -44,6 +44,14 @@ sub action
     GetStatusInfo("info jobs hosts queueLen");
     my $Privileged = CheckPermission();
 
+if ($In{image} ne "") {
+        $In{image} =~ /([0-9]+)/;
+        my $weeks = $1;
+        print "Content-type: image/png\n\n";
+        print `/usr/bin/rrdtool graph - --imgformat=PNG --start=end-${weeks}w --end=-300 --title="BackupPC Pool Size (${weeks} weeks)" --base=1000 --height=100 --width=600 --alt-autoscale-max --lower-limit=0 --vertical-label="" --slope-mode --font TITLE:10:Times --font AXIS:8:Times --font LEGEND:8:Times --font UNIT:8:Times -c BACK#FFFFFF DEF:ao="$LogDir/pool.rrd":ckb:AVERAGE CDEF:a=ao,1024,* AREA:a#95B8DB:"CPool in bytes"  GPRINT:a:LAST:"Current\\:%8.2lf %s" GPRINT:a:AVERAGE:"Average\\:%8.2lf %s" GPRINT:a:MAX:"Maximum\\:%8.2lf %s\\n"`;
+        return;
+    }
+
     my($jobStr, $statusStr);
     foreach my $host ( sort(keys(%Jobs)) ) {
         my $startTime = timeStamp2($Jobs{$host}{startTime});
@@ -129,6 +137,10 @@ EOF
     my $generalInfo = eval("qq{$Lang->{BackupPC_Server_Status_General_Info}}")
                                 if ( $Privileged );
     my $content = eval("qq{$Lang->{BackupPC_Server_Status}}");
+    if (-r "$LogDir/pool.rrd" && $Privileged) {
+       $content .= '<p><img src="'.$MyURL.'?image=4"><p><img src="'.$MyURL.'?image=52">';
+    }
+
     Header($Lang->{H_BackupPC_Server_Status}, $content);
     Trailer();
 }

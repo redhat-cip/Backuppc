@@ -629,6 +629,9 @@ foreach my $lib ( qw(
         lib/BackupPC/CGI/StopServer.pm
         lib/BackupPC/CGI/Summary.pm
         lib/BackupPC/CGI/View.pm
+        lib/BackupPC/CGI/LaunchMassBack.pm
+        lib/BackupPC/CGI/Downtime.pm
+        lib/BackupPC/CGI/ActionSummary.pm
         lib/BackupPC/Config/Meta.pm
         lib/BackupPC/Lang/cz.pm
         lib/BackupPC/Lang/de.pm

@@ -2273,3 +2273,25 @@ $Conf{CgiUserConfigEdit} = {
         EMailOutlookBackupMesg    => 1,
         EMailHeaders              => 1,
 };
+
+# Conf Patch F.L
+$Conf{ForceBlackoutPeriods} = 'on';
+$Conf{CheckForQueue} = 'on';
+$Conf{CheckForQueueType} = 'Alias';
+# $Conf{CheckForQueueType} = 'Pool';
+
+# $Conf{CheckForQueuePool} = {
+#          'mail-1'  => 2,
+#          'dns-1'   => 2,
+#          'ldap-1'  => 2,
+#          'pdc-1'   => 1,
+#          'titi'   => 1,
+#          'toto'  => 1                                                                                                                             
+# };
+
+#$Conf{SharedLockQueue} = 'on';
+#$Conf{SharedLockMysqlHost} = '1.2.3.4';
+#$Conf{SharedLockMysqlPort} = '3306';
+#$Conf{SharedLockMysqlDatabase} = 'backuppc';
+#$Conf{SharedLockMysqlLogin} = 'backuppc';
+#$Conf{SharedLockMysqlPass} = 'password';

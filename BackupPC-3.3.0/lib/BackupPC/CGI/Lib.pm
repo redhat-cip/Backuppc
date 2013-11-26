@@ -454,6 +454,8 @@ sub Header
                                            priv => 1},
         { link => "?action=queue",         name => $Lang->{Current_queues},
                                            priv => 1},
+        { link => "?action=actionsummary", name => "Action Summary",
+                                           priv => 1},
         @{$Conf{CgiNavBarLinks} || []},
     );
     my $host = $In{host};
